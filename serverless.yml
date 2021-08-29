@@ -1,0 +1,68 @@
+service: auction-service
+
+plugins:
+  - serverless-bundle
+  - serverless-pseudo-parameters
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  lambdaHashingVersion: 20201221
+  memorySize: 256
+  stage: ${opt:stage, 'dev'}
+  region: us-west-2
+  environment:
+    AUCTIONS_TABLE_NAME: ${self:custom.AuctionsTable.name}
+  iamRoleStatements:
+    - ${file(iam/AuctionsTableIAM.yml):AuctionsTableIAM}
+  httpApi:
+    cors: true
+    authorizers:
+      auth0:
+        identitySource: $request.header.Authorization
+        issuerUrl: 'https://epiphytehealth.us.auth0.com/'
+        audience: https://auth0-jwt-authorizer
+
+resources:
+  Resources:
+    AuctionsTable: ${file(resources/AuctionsTable.yml):AuctionsTable}
+
+functions:
+  createAuction:
+    handler: src/handlers/createAuction.handler
+    events:
+      - httpApi:
+          method: POST
+          path: /auction
+          authorizer: auth0
+
+  getAuctions:
+    handler: src/handlers/getAuctions.handler
+    events:
+      - httpApi:
+          method: GET
+          path: /auctions
+
+  getAuction:
+    handler: src/handlers/getAuction.handler
+    events:
+      - httpApi:
+          method: GET
+          path: /auction/{id}
+
+  placeBid:
+    handler: src/handlers/placeBid.handler
+    events:
+      - httpApi:
+          method: PATCH
+          path: /auction/{id}/bid
+
+  processAuctions:
+    handler: src/handlers/processAuctions.handler
+    # events:
+    #  - schedule: rate(1 minute)
+
+custom:
+  AuctionsTable:
+    name: !Ref AuctionsTable
+    arn: !GetAtt AuctionsTable.Arn
