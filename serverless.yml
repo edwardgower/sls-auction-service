@@ -14,9 +14,11 @@ provider:
   environment:
     AUCTIONS_TABLE_NAME: ${self:custom.AuctionsTable.name}
     MAIL_QUEUE_URL: ${self:custom.MailQueue.url}
+    AUCTIONS_BUCKET_NAME: ${self:custom.AuctionsBucket.name}
   iamRoleStatements:
     - ${file(iam/AuctionsTableIAM.yml):AuctionsTableIAM}
     - ${file(iam/MailQueueIAM.yml):MailQueueIAM}
+    - ${file(iam/AuctionsBucketIAM.yml):AuctionsBucketIAM}
   httpApi:
     cors: true
     authorizers:
@@ -28,6 +30,8 @@ provider:
 resources:
   Resources:
     AuctionsTable: ${file(resources/AuctionsTable.yml):AuctionsTable}
+    AuctionsBucket: ${file(resources/AuctionsBucket.yml):AuctionsBucket}
+    AuctionsBucketPolicy: ${file(resources/AuctionsBucket.yml):AuctionsBucketPolicy}
 
 functions:
   createAuction:
@@ -59,6 +63,13 @@ functions:
           method: PATCH
           path: /auction/{id}/bid
 
+  uploadAuctionPicture:
+    handler: src/handlers/uploadAuctionPicture.handler
+    events:
+      - httpApi:
+          method: PATCH
+          path: /auction/{id}/picture
+
   processAuctions:
     handler: src/handlers/processAuctions.handler
     # events:
@@ -71,3 +82,5 @@ custom:
   MailQueue:
     arn: ${cf:sls-notification-service-${self:provider.stage}.MailQueueArn}
     url: ${cf:sls-notification-service-${self:provider.stage}.MailQueueUrl}
+  AuctionsBucket:
+    name: sls-auctions-bucket-edgower-${self:provider.stage}
